@@ -15,7 +15,7 @@ contract DChat {
         return owner;
     }
     
-    struct User {
+    struct MailUser {
         uint256 mailCounter;
     }
     
@@ -25,7 +25,7 @@ contract DChat {
         uint256 id;
     }
     
-    mapping(address => User) GlobalUsers;
+    mapping(address => MailUser) GlobalMailUsers;
     
     mapping(address => DMail[]) GlobalInbox;
     mapping(address => DMail[]) SentItems;
@@ -39,8 +39,8 @@ contract DChat {
     }
     
     function sendEmail(address target, string memory text) public {
-        uint256 id = GlobalUsers[msg.sender].mailCounter;
-        GlobalUsers[msg.sender].mailCounter = id + 1;
+        uint256 id = GlobalMailUsers[msg.sender].mailCounter;
+        GlobalMailUsers[msg.sender].mailCounter = id + 1;
         DMail memory email = DMail(text, msg.sender, id);
         GlobalInbox[target].push(email);
         SentItems[msg.sender].push(email);
@@ -71,6 +71,66 @@ contract DChat {
                 delete SentItems[msg.sender][i]; 
                 break;
             }
+        }
+    }
+    
+    struct DirectMessageUser {
+        uint256 groupChatCount;
+    }
+    
+    mapping(address => DirectMessageUser) GlobalDirectMessageUsers;
+    
+    struct DirectMessage {
+        string message;
+        address sender;
+        address target;
+        uint256 id;
+    }
+    
+    struct DirectMessages {
+        mapping(uint256 => DirectMessage[]) UsersMessages;
+    }
+    
+    struct DirectMessageData{
+        mapping(uint256 => address[]) GroupMembers;
+        uint256 messageCount;
+    }
+    
+    mapping(address => DirectMessages) GlobalDirectMessages;
+    mapping(address => DirectMessageData) GlobalDirectMessageData;
+    
+    function sendDirectMessage(address creator, address target, uint256 id, string memory text) public returns(bool) {
+        if(isMemberOfDM(creator, msg.sender, id)) {
+            uint256 a = GlobalDirectMessageData[creator].messageCount;
+            GlobalDirectMessageData[creator].messageCount = a + 1;
+            GlobalDirectMessages[creator].UsersMessages[id].push(DirectMessage(text, msg.sender, target, a));
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    
+    function isMemberOfDM(address creator, address target, uint256 id) public view returns(bool) {
+        address[] memory members = GlobalDirectMessageData[creator].GroupMembers[id];
+        if(members[0] == target) {
+            return true;
+        }
+        else if(members[1] == target) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    
+    function getDirectMessages(address creator, uint256 id) public view returns(DirectMessage[] memory) {
+        if(isMemberOfDM(creator, msg.sender, id)) {
+            return GlobalDirectMessages[creator].UsersMessages[id];
+        }
+        else {
+            DirectMessage[] memory dm;
+            return dm;
         }
     }
 }
