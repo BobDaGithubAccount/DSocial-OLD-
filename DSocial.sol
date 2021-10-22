@@ -91,8 +91,12 @@ contract DChat {
         mapping(uint256 => DirectMessage[]) UsersMessages;
     }
     
-    struct DirectMessageData{
-        mapping(uint256 => address[]) GroupMembers;
+    struct DirectMessageGroupData {
+        address[] GroupMembers;
+    }
+    
+    struct DirectMessageData {
+        DirectMessageGroupData gm;
         uint256 messageCount;
     }
     
@@ -112,7 +116,7 @@ contract DChat {
     }
     
     function isMemberOfDM(address creator, address target, uint256 id) public view returns(bool) {
-        address[] memory members = GlobalDirectMessageData[creator].GroupMembers[id];
+        address[] memory members = GlobalDirectMessageData[creator].gm.GroupMembers;
         if(members[0] == target) {
             return true;
         }
@@ -132,5 +136,20 @@ contract DChat {
             DirectMessage[] memory dm;
             return dm;
         }
+    }
+    
+    function createDirectMessageChannel(address target) public {
+        uint256 a = GlobalDirectMessageUsers[msg.sender].groupChatCount;
+        GlobalDirectMessageUsers[msg.sender].groupChatCount = a + 1;
+        
+        address[] memory members;
+        members[0] = msg.sender;
+        members[1] = target;
+        DirectMessageGroupData memory dmgd = DirectMessageGroupData(members);
+        DirectMessageData memory directmessagedata = DirectMessageData(dmgd, 0);
+        GlobalDirectMessageData[msg.sender] = directmessagedata;
+        
+        DirectMessage[] memory dms;
+        GlobalDirectMessages[msg.sender].UsersMessages[a] = dms;
     }
 }
