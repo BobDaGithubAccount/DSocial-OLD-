@@ -5,6 +5,9 @@ contract DChat {
     
     address public owner = 0xc479DA9d29D528670A916ab4Bc0c4a059a9619a8;
     
+    bool closed = false;
+    string closedmessage = "insert text";
+    
     function transferOwner(address luckyOne) public {
         if(owner == msg.sender) {
             owner = luckyOne;
@@ -15,20 +18,60 @@ contract DChat {
         return owner;
     }
     
-    struct MailUser {
-        uint256 mailCounter;
+    function shutdownContract() public {
+        if(msg.sender == owner) {
+            closed = true;
+        }
     }
+    
+    function startContract() public {
+        if(msg.sender == owner) {
+            closed = false;
+        }
+    }
+    
+    function isContractOffline() public view returns(bool) {
+        return closed;
+    }
+    
+    function setErrorMessage(string memory errormessage) public {
+        closedmessage = errormessage;
+    }
+    event errorMessage(address indexed loser, string indexed message);
+    //
+    //
+    struct GlobalUser {
+        string name;
+        string pfpLocation;
+        string description;
+        address Address;
+    }
+    //
+    //
+    event ProfileUpdate(address indexed updated);
+    
+    mapping(address => GlobalUser) GlobalUsers;
+    
+    function getGlobalUser() public view returns(GlobalUser memory) {
+        return GlobalUsers[msg.sender];
+    }
+    function setGlobalUser(string memory name, string memory pfpLocation, string memory description, address Address) public {
+        GlobalUser memory user = GlobalUser(name, pfpLocation, description, Address);
+        GlobalUsers[msg.sender] = user;
+        emit ProfileUpdate(Address);
+    }
+    //
+    //
     
     struct DMail {
         string msg;
         address sender;
-        uint256 id;
     }
-    
-    mapping(address => MailUser) GlobalMailUsers;
     
     mapping(address => DMail[]) GlobalInbox;
     mapping(address => DMail[]) SentItems;
+    
+    event SendEmail(address indexed _from, address indexed _to);
     
     function getInbox() public view returns (DMail[] memory) {
         return GlobalInbox[msg.sender];
@@ -39,20 +82,14 @@ contract DChat {
     }
     
     function sendEmail(address target, string memory text) public {
-        uint256 id = GlobalMailUsers[msg.sender].mailCounter;
-        GlobalMailUsers[msg.sender].mailCounter = id + 1;
-        DMail memory email = DMail(text, msg.sender, id);
-        GlobalInbox[target].push(email);
-        SentItems[msg.sender].push(email);
-    }
-    
-    function deleteEmail(uint256 id) public {
-        DMail[] memory userInbox = GlobalInbox[msg.sender];
-        for (uint256 i=0; i < userInbox.length; i++) {
-            if(userInbox[i].id == id) {
-                delete GlobalInbox[msg.sender][i]; 
-                break;
-            }
+        if(isContractOffline() == false) {
+            DMail memory email = DMail(text, msg.sender);
+            GlobalInbox[target].push(email);
+            SentItems[msg.sender].push(email);
+            emit SendEmail(msg.sender, target);   
+        }
+        else {
+            emit errorMessage(msg.sender, closedmessage);
         }
     }
     
@@ -64,13 +101,33 @@ contract DChat {
         delete SentItems[msg.sender];
     }
     
-    function deleteSentItem(uint256 id) public {
-        DMail[] memory sentItems = SentItems[msg.sender];
-        for (uint256 i=0; i < sentItems.length; i++) {
-            if(sentItems[i].id == id) {
-                delete SentItems[msg.sender][i]; 
-                break;
-            }
+    //
+    //
+    event DirectMessageSend(address sender, address target);
+    
+    struct DirectMessage {
+        string text;
+        string time;
+        address sender;
+    }
+    
+    struct DM {
+        DirectMessage[] messages;
+        address[] members;
+    }
+    
+    mapping(address => DM) GlobalDirectMessages;
+    
+    function getDirectMessageContents() public view returns(DirectMessage[] memory) {
+        
+    }
+    
+    function sendDirectMessage(string memory text, string memory time, address target) public {
+        if(isContractOffline() == false) {
+            
+        }
+        else {
+            emit errorMessage(msg.sender, closedmessage);
         }
     }
 }
