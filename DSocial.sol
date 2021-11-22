@@ -205,8 +205,8 @@ contract DSocial {
         if(isFriend(msg.sender, target) == true) {
             uint256[] memory messages;
             address[] memory members;
-            members[1] = msg.sender;
-            members[2] = target;
+            members[0] = msg.sender;
+            members[1] = target;
             DmChat memory chat = DmChat(messages, members, name, description, 0, true);
             chatCounter++;
             GlobalChats[chatCounter] = chat;
