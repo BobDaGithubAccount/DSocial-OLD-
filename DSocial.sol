@@ -2,13 +2,7 @@ pragma solidity 0.8.10;
 pragma abicoder v2;
 // SPDX-License-Identifier: Proprietary
 contract DSocial {
-    
-    constructor() public {
-        //Initalise stuff where needed here
-    }
-    
     //
-    
     event OwnerChangedEvent(address oldone, address newone);
     address owner = 0xc479DA9d29D528670A916ab4Bc0c4a059a9619a8;
     function getOwner() public view returns(address) {
@@ -28,7 +22,7 @@ contract DSocial {
             emit ContractStatusChange(newValue);
         }
     }
-    //Don't call from within contract
+
     function getContractStatus() public view returns(bool) {
         return isContractOffline;
     }
@@ -63,10 +57,11 @@ contract DSocial {
             string pfplocation;
             address[] friends;
             bool isBot;
+            bool isValue;
+            uint256[] dmChats;
         }
         
         mapping(address => GlobalUser) GlobalUsers;
-        mapping(address => bool) ListOfUsers;
         
         function getGlobalUser(address target) public view returns(GlobalUser memory) {
             return GlobalUsers[target];
@@ -74,9 +69,8 @@ contract DSocial {
         
         function updateGlobalUser(string memory name, string memory description, string memory pfplocation, bool isBot) public {
             GlobalUser memory user = GlobalUsers[msg.sender];
-            GlobalUser memory gu = GlobalUser(name, description, pfplocation, user.friends, isBot);
+            GlobalUser memory gu = GlobalUser(name, description, pfplocation, user.friends, isBot, true, user.dmChats);
             GlobalUsers[msg.sender] = gu;
-            ListOfUsers[msg.sender] = true;
             emit ProfileUpdateEvent(msg.sender);
         }
         
@@ -92,6 +86,23 @@ contract DSocial {
                     break;
                 }
             }
+        }
+        
+        function getFriends() public view returns(address[] memory) {
+            return GlobalUsers[msg.sender].friends;
+        }
+        
+        function isFriend(address person1, address person2) public view returns(bool) {
+            GlobalUser memory user = GlobalUsers[person2];
+            address[] memory friends = user.friends;
+            bool returnValue;
+            for(uint i = 0; i < friends.length; i++) {
+                if(friends[i] == person1) {
+                    returnValue = true;
+                    break;
+                }
+            }
+            return returnValue;
         }
 
     //
@@ -136,86 +147,124 @@ contract DSocial {
     
     //
 
-    struct DirectMessage {
+    event CreateDmChatEvent(address creator, address target, uint256 id);
+    event DmChatDeleteEvent(address deleter, address target, uint256 id);
+    
+    event SendDmEvent(uint256 chatID, uint256 id);
+    
+    struct DmChat {
+        uint256[] messages;
+        address[] members;
+        string name;
+        string description;
+        uint256 messageCount;
+        bool isValue;
+    }
+    
+    struct Dm {
         string text;
         string time;
         address sender;
-    }
-
-    struct DmChat {
-        string name;
-        DirectMessage[] messages;
-        address[] members;
+        address[] allowedToSee;
+        bool isValue;
     }
     
-    uint256 DmChatCounter = 0;
+    mapping(uint256 => DmChat) GlobalChats;
+    mapping(uint256 => Dm) GlobalMessages;
     
-    mapping(uint256=>DmChat) GlobalChats;
-    mapping(address=>uint256[]) GlobalUserChats;
+    uint256 chatCounter = 0;
+    uint256 messageCounter = 0;
     
-    event DmChatCreateEvent(uint256 id, address[] members);
+    function getDmChats() public view returns(uint256[] memory ids) {
+        return GlobalUsers[msg.sender].dmChats;
+    }
     
-    function createDmGroup(string memory name, address target) public {
-        if(isContractOffline==false) {
-            address[] memory targetFriendsList = GlobalUsers[target].friends;
-            bool isFriend = false;
-            for(uint i = 0; i < targetFriendsList.length; i++) {
-                if(targetFriendsList[i]==msg.sender) {
-                    isFriend = true;
-                    break;
-                }
-            }
-            if(isFriend == true) {
-                uint256 id = DmChatCounter+1;
-                DmChatCounter = id;
-                address[] memory members;
-                DirectMessage[] memory messages;
-                members[0] = msg.sender;
-                members[1] = target;
-                DmChat memory chat = DmChat(name, messages, members);
-                GlobalChats[id] = chat;
-                GlobalUserChats[msg.sender].push(id);
-                GlobalUserChats[target].push(id);
-                emit DmChatCreateEvent(id, members);
-            }   
+    function getDmChat(uint256 id) public view returns(DmChat memory dms) {
+        DmChat memory chat = GlobalChats[id];
+        if((chat.members[0] == msg.sender || chat.members[1] == msg.sender) && chat.isValue == true) {
+            return chat;
+        }
+        else {
+            uint256[] memory messages;
+            address[] memory members;
+            DmChat memory a = DmChat(messages, members, "Don't have permission to see this chat!", "Go away!", 0, false);
+            return a;
         }
     }
     
-    event DmChatDeleteEvent(uint256 id, address[] members);
-    
-    function leaveDmGroup(uint256 id) public {
-        if(isContractOffline==false) {
-            address[] memory members = GlobalChats[id].members;
-            address one = members[0];
-            address two = members[1];
-            if(one==msg.sender||two==msg.sender) {
-                for(uint i=0;i<GlobalUserChats[one].length;i++) {
-                    if(GlobalUserChats[one][i]==id) {
-                        delete GlobalUserChats[one][i];
-                    }
-                }
-                for(uint i=0;i<GlobalUserChats[two].length;i++) {
-                    if(GlobalUserChats[two][i]==id) {
-                        delete GlobalUserChats[two][i];
-                    }
-                }
-                delete GlobalChats[id];
-                emit DmChatDeleteEvent(id,members);
-            }
+    function getDm(uint256 id) public view returns(Dm memory) {
+        Dm memory dm = GlobalMessages[id];
+        if((dm.allowedToSee[0] == msg.sender || dm.allowedToSee[1] == msg.sender) && dm.isValue == true) {
+            return dm;
+        }
+        else {
+            address[] memory allowedToSee;
+            allowedToSee[0] = msg.sender;
+            Dm memory dud = Dm("Don't have permission to see message", "Now idiot", owner, allowedToSee, false);
+            return dud;
         }
     }
     
-    function getDms() public view returns(uint256[] memory) {
-        return GlobalUserChats[msg.sender];
-    }
-    
-    function getDm(uint256 id) public view returns(DmChat memory) {
-        address[] memory members = GlobalChats[id].members;
-        address one = members[0];
-        address two = members[1];
-        if(one==msg.sender||two==msg.sender) {
-            return GlobalChats[id];
+    function createDmChat(address target, string memory name, string memory description) public returns(bool) {
+        if(isFriend(msg.sender, target) == true) {
+            uint256[] memory messages;
+            address[] memory members;
+            members[0] = msg.sender;
+            members[1] = target;
+            DmChat memory chat = DmChat(messages, members, name, description, 0, true);
+            chatCounter++;
+            GlobalChats[chatCounter] = chat;
+            emit CreateDmChatEvent(msg.sender, target, chatCounter);
+            return true;
+        }
+        else {
+            return false;
         }
     }
     
+    function leaveDmChat(uint256 id) public returns(bool) {
+        DmChat memory chat = GlobalChats[id];
+        if(chat.isValue = true) {
+           if(chat.members[0] == msg.sender) {
+               delete GlobalChats[id];
+               emit DmChatDeleteEvent(msg.sender, chat.members[1], id);
+               return true;
+           } 
+           else if(chat.members[1] == msg.sender) {
+               delete GlobalChats[id];
+               emit DmChatDeleteEvent(msg.sender, chat.members[0], id);
+               return true;
+           }
+           else {
+               return false;
+           }
+        }
+        else {
+            return false;
+        }
+    }
+    
+    function sendDm(string memory text, string memory time, address target, uint256 chatId) public returns (bool) {
+        DmChat memory chat = GlobalChats[chatId];
+         if(chat.isValue = true) {
+           if(chat.members[0] == msg.sender || chat.members[1] == msg.sender) {
+               address[] memory allowedToSee;
+               allowedToSee[0] = msg.sender;
+               allowedToSee[1] = target;
+               Dm memory dm = Dm(text, time, msg.sender, allowedToSee, true);
+               messageCounter++;
+               GlobalChats[chatId].messageCount++;
+               GlobalChats[chatId].messages[GlobalChats[chatId].messageCount] = messageCounter;
+               GlobalMessages[messageCounter] = dm;
+               emit SendDmEvent(chatId, messageCounter);
+               return true;
+           }
+           else {
+                return false;   
+           }
+         }
+         else {
+             return false;
+         }
+    } 
 }
