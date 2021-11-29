@@ -219,7 +219,19 @@ contract DSocial {
 
     function transferNFT(uint256 NftId, address target) public returns(bool) {
         if(GlobalNftStorage[NftId].owner == msg.sender) {
-            
+            NFT memory nft = GlobalNftStorage[NftId];
+            nft.owner = target;
+            GlobalNftStorage[NftId] = nft;
+            GlobalUsers[target].nfts.push(NftId);
+            uint256[] memory nfts = GlobalUsers[msg.sender].nfts;
+            for(uint i = 0; i < nfts.length; i++) {
+                if(nfts[i] == NftId) {
+                    delete nfts[i];
+                    break;
+                }
+            }
+            GlobalUsers[msg.sender].nfts = nfts;
+            emit NftEvent(NftId, msg.sender, target);
             return true;
         }
         else {
@@ -376,6 +388,6 @@ contract DSocial {
     //
     //
 
-
+    
 
 }
