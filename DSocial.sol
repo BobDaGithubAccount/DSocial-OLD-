@@ -62,6 +62,7 @@ contract DSocial {
             bool isValue;
             uint256[] dmChats;
             uint256[] files;
+            uint256[] nfts;
         }
         
         mapping(address => GlobalUser) GlobalUsers;
@@ -72,7 +73,7 @@ contract DSocial {
         
         function updateGlobalUser(string memory name, string memory description, string memory pfplocation, bool isBot) public {
             GlobalUser memory user = GlobalUsers[msg.sender];
-            GlobalUser memory gu = GlobalUser(name, description, pfplocation, user.friends, isBot, true, user.dmChats, user.files);
+            GlobalUser memory gu = GlobalUser(name, description, pfplocation, user.friends, isBot, true, user.dmChats, user.files, user.nfts);
             GlobalUsers[msg.sender] = gu;
             emit ProfileUpdateEvent(msg.sender);
         }
@@ -158,12 +159,17 @@ contract DSocial {
         File memory file = File(name, data, msg.sender, restrictAccess, allowedToSee);
         fileCounter++;
         GlobalFileStorage[fileCounter] = file;
+        GlobalUsers[msg.sender].files.push(fileCounter);
         return true;
     }
 
     //
     //
     //
+
+    uint256 nftCounter = 0;
+
+    mapping(uint256 => NFT) GlobalNftStorage;
 
     struct NFT {
         string name;
@@ -173,7 +179,53 @@ contract DSocial {
         string URL;
     }
 
-    
+    function getNFTs() public view returns(uint256[] memory) {
+        return GlobalUsers[msg.sender].nfts;
+    }
+
+    function getNFT(uint256 id) public view returns(NFT memory) {
+        if(GlobalNftStorage[id].owner == msg.sender) {
+            return GlobalNftStorage[id];
+        }
+        else {
+            NFT memory nft = NFT("ERROR", owner, true, 69, "DEEZ");
+            return nft;
+        }  
+    }
+
+    function createNFT(string memory name, bool isStoredOnChain, uint256 id, string memory url) public returns(bool) {
+        NFT memory nft = NFT(name, msg.sender, isStoredOnChain, id, url);
+        nftCounter++;
+        uint256 counter = nftCounter;
+        GlobalNftStorage[counter] = nft;
+        GlobalUsers[msg.sender].nfts.push(counter);
+        emit NftEvent(counter, msg.sender, msg.sender);
+        return true;
+    }
+
+    function updateNFT(uint256 NftId, string memory name, bool isStoredOnChain, uint256 id, string memory url) public returns(bool) {
+        if(GlobalNftStorage[NftId].owner == msg.sender) {
+            NFT memory nft = NFT(name, msg.sender, isStoredOnChain, id, url);
+            GlobalNftStorage[NftId] = nft;
+            emit NftEvent(NftId, msg.sender, msg.sender);
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    event NftEvent(uint256 id, address oldOwner, address newOwner);
+
+    function transferNFT(uint256 NftId, address target) public returns(bool) {
+        if(GlobalNftStorage[NftId].owner == msg.sender) {
+            
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
 
     //
     //
