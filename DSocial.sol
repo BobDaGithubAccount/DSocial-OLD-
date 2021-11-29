@@ -61,6 +61,7 @@ contract DSocial {
             bool isBot;
             bool isValue;
             uint256[] dmChats;
+            uint256[] files;
         }
         
         mapping(address => GlobalUser) GlobalUsers;
@@ -71,7 +72,7 @@ contract DSocial {
         
         function updateGlobalUser(string memory name, string memory description, string memory pfplocation, bool isBot) public {
             GlobalUser memory user = GlobalUsers[msg.sender];
-            GlobalUser memory gu = GlobalUser(name, description, pfplocation, user.friends, isBot, true, user.dmChats);
+            GlobalUser memory gu = GlobalUser(name, description, pfplocation, user.friends, isBot, true, user.dmChats, user.files);
             GlobalUsers[msg.sender] = gu;
             emit ProfileUpdateEvent(msg.sender);
         }
@@ -108,6 +109,71 @@ contract DSocial {
             }
             return returnValue;
         }
+
+    //
+    //
+    //
+
+    struct File {
+        string name;
+        string data;
+        address uploader;
+        bool restrictAccess;
+        address[] allowedToSee;
+    }
+
+    mapping(uint256 => File) GlobalFileStorage;
+
+    uint256 fileCounter = 0;
+
+    function getFiles() public view returns(uint256[] memory) {
+        return GlobalUsers[msg.sender].files;
+    }
+
+    function getFile(uint256 id) public view returns(File memory) {
+        File memory file = GlobalFileStorage[id];
+        if(file.restrictAccess == true) {
+            bool returnValue;
+            for(uint i = 0; i < file.allowedToSee.length; i++) {
+                if(file.allowedToSee[i] == msg.sender) {
+                    returnValue = true;
+                    break;
+                }
+            }
+            if(returnValue == true) {
+                return file;
+            }
+            else {
+                address[] memory allowedToSee;
+                File memory f = File("ERROR","ERROR",owner,false,allowedToSee);
+                return f;
+            }
+        }
+        else {
+            return file;
+        }
+    }
+
+    function uploadFile(string memory name, string memory data, bool restrictAccess, address[] memory allowedToSee) public returns(bool) {
+        File memory file = File(name, data, msg.sender, restrictAccess, allowedToSee);
+        fileCounter++;
+        GlobalFileStorage[fileCounter] = file;
+        return true;
+    }
+
+    //
+    //
+    //
+
+    struct NFT {
+        string name;
+        address owner;
+        bool isStoredOnChain;
+        uint256 id;
+        string URL;
+    }
+
+    
 
     //
     //
@@ -159,8 +225,7 @@ contract DSocial {
         string text;
         address sender;
         address[] allowedToSee;
-        //uint256[] filesAttatched;
-        //TODO
+        uint256[] filesAttatched;
     }
 
     struct DmChat {
@@ -203,7 +268,8 @@ contract DSocial {
             string memory text = "ERROR";
             address sender = address(this);
             address[] memory allowedToSee;
-            Dm memory dm = Dm(text, sender, allowedToSee);
+            uint256[] memory filesAttatched;
+            Dm memory dm = Dm(text, sender, allowedToSee, filesAttatched);
             return dm;
         }
     }
@@ -212,30 +278,29 @@ contract DSocial {
 
     function createDmChat(string memory name, string memory description, address target) public {
         if(isFriend(msg.sender, target)) {
-            uint256 id = globalChatCount + 1;
-            globalChatCount = id;
+            globalChatCount++;
             uint256[] memory messages;
-            address[] memory members;
+            address[] memory members = new address[](2);
             members[0] = msg.sender;
             members[1] = target;
             DmChat memory chat = DmChat(messages, name, description, members);
-            GlobalChats[id] = chat;
-            GlobalUsers[msg.sender].dmChats.push(id);
-            GlobalUsers[target].dmChats.push(id);
-            emit DmCreateEvent(id, target, msg.sender);
+            GlobalChats[globalChatCount] = chat;
+            GlobalUsers[msg.sender].dmChats.push(globalChatCount);
+            GlobalUsers[target].dmChats.push(globalChatCount);
+            emit DmCreateEvent(globalChatCount, target, msg.sender);
         }
     }
 
     uint256 public globalMessageCount = 0;
 
-    function sendMessage(uint256 chatID, string memory text, address target) public {
+    function sendMessage(uint256 chatID, string memory text, address target, uint256[] memory filesAttatched) public {
         if(GlobalChats[chatID].members[0] == msg.sender || GlobalChats[chatID].members[1] == msg.sender) {
             uint256 id = globalMessageCount + 1;
             globalMessageCount = id;
             address[] memory allowedToSee;
             allowedToSee[0] = msg.sender;
             allowedToSee[1] = target;
-            Dm memory dm = Dm(text, msg.sender, allowedToSee);
+            Dm memory dm = Dm(text, msg.sender, allowedToSee, filesAttatched);
             GlobalMessages[id] = dm;
             GlobalChats[chatID].messages.push(id);
             emit DmSendEvent(id, chatID, target, msg.sender);
@@ -254,5 +319,11 @@ contract DSocial {
             emit DmDeleteEvent(chatID, person1, msg.sender);
         }
     }
+
+    //
+    //
+    //
+
+
 
 }
