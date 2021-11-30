@@ -63,6 +63,7 @@ contract DSocial {
             uint256[] dmChats;
             uint256[] files;
             uint256[] nfts;
+            uint256[] gmChats;
         }
         
         mapping(address => GlobalUser) GlobalUsers;
@@ -73,7 +74,7 @@ contract DSocial {
         
         function updateGlobalUser(string memory name, string memory description, string memory pfplocation, bool isBot) public {
             GlobalUser memory user = GlobalUsers[msg.sender];
-            GlobalUser memory gu = GlobalUser(name, description, pfplocation, user.friends, isBot, true, user.dmChats, user.files, user.nfts);
+            GlobalUser memory gu = GlobalUser(name, description, pfplocation, user.friends, isBot, true, user.dmChats, user.files, user.nfts, user.gmChats);
             GlobalUsers[msg.sender] = gu;
             emit ProfileUpdateEvent(msg.sender);
         }
@@ -175,8 +176,9 @@ contract DSocial {
         string name;
         address owner;
         bool isStoredOnChain;
-        uint256 id;
-        string URL;
+        string fileName;
+        string data;
+        string url;
     }
 
     function getNFTs() public view returns(uint256[] memory) {
@@ -188,13 +190,13 @@ contract DSocial {
             return GlobalNftStorage[id];
         }
         else {
-            NFT memory nft = NFT("ERROR", owner, true, 69, "DEEZ");
+            NFT memory nft = NFT("ERROR", owner, true, "nofile.txt", "get a life", "www.nothere.com");
             return nft;
         }  
     }
 
-    function createNFT(string memory name, bool isStoredOnChain, uint256 id, string memory url) public returns(bool) {
-        NFT memory nft = NFT(name, msg.sender, isStoredOnChain, id, url);
+    function createNFT(string memory name, bool isStoredOnChain, string memory fileName, string memory fileData, string memory url) public returns(bool) {
+        NFT memory nft = NFT(name, msg.sender, isStoredOnChain, fileName, fileData, url);
         nftCounter++;
         uint256 counter = nftCounter;
         GlobalNftStorage[counter] = nft;
@@ -203,9 +205,9 @@ contract DSocial {
         return true;
     }
 
-    function updateNFT(uint256 NftId, string memory name, bool isStoredOnChain, uint256 id, string memory url) public returns(bool) {
+    function updateNFT(uint256 NftId, string memory name, bool isStoredOnChain, string memory fileName, string memory fileData, string memory url) public returns(bool) {
         if(GlobalNftStorage[NftId].owner == msg.sender) {
-            NFT memory nft = NFT(name, msg.sender, isStoredOnChain, id, url);
+            NFT memory nft = NFT(name, msg.sender, isStoredOnChain, fileName, fileData, url);
             GlobalNftStorage[NftId] = nft;
             emit NftEvent(NftId, msg.sender, msg.sender);
             return true;
@@ -390,4 +392,74 @@ contract DSocial {
 
     
 
+    struct Gm {
+        string text;
+        address sender;
+        address[] allowedToSee;
+        uint256[] filesAttatched;
+    }
+
+    struct GmChat {
+        uint256[] messages;
+        string name;
+        string description;
+        address[] members;
+    }
+
+    mapping(uint256 => GmChat) GlobalGroupChats;
+    mapping(uint256 => Gm) GlobalGroupMessages;
+
+    event GmSendEvent(uint256 messageID, uint256 chatID, address target, address sender);
+    event GmCreateEvent(uint256 chatID);
+    event GmLeaveEvent(uint256 chatID, address target);
+    event GmAddedToEvent(uint256 chatID, address target, address sender);
+
+    function getGmChats() public view returns(uint256[] memory) {
+        return GlobalUsers[msg.sender].gmChats;
+    }
+
+    function isMemberOfChat(address[] memory members, address thingToFind) public view returns(bool) {
+        bool returnValue = false;
+        for(uint i = 0; i < members.length; i++) {
+            if(members[i] == thingToFind) {
+                returnValue = true;
+                break;
+            }
+        }
+        return returnValue;
+    }
+
+    function getGmChat(uint256 id) public view returns(GmChat memory) {
+        if(isMemberOfChat(GlobalGroupChats[id].members, msg.sender) == true) {
+            return GlobalGroupChats[id];
+        }
+        else {
+            uint256[] memory messages;
+            string memory name = "ERROR";
+            string memory description = "Something went wrong!";
+            address[] memory members;
+            GmChat memory chat = GmChat(messages, name, description, members);
+            return chat;
+        }
+    }
+
+    function getGroupMessage(uint256 id) public view returns(Gm memory) {
+        if(isMemberOfChat(GlobalGroupMessages[id].allowedToSee, msg.sender) == true) {
+            return GlobalGroupMessages[id];
+        }
+        else {
+            string memory text = "ERROR";
+            address sender = address(this);
+            address[] memory allowedToSee;
+            uint256[] memory filesAttatched;
+            Gm memory gm = Gm(text, sender, allowedToSee, filesAttatched);
+            return gm;
+        }
+    }
+
+    function createGroupChat(string memory name, string memory description) public {
+
+    }
+
+    //WORK IN PROGRESS
 }
