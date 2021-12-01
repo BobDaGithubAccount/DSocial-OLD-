@@ -14,39 +14,6 @@ contract DSocial {
             emit OwnerChangedEvent(msg.sender, target);
         }
     }
-    event ContractStatusChange(bool isOffline);
-    bool isContractOffline = false;
-    function setContractOffline(bool newValue) public {
-        if(msg.sender == owner) {
-            isContractOffline = newValue;
-            emit ContractStatusChange(newValue);
-        }
-    }
-
-    function getContractStatus() public view returns(bool) {
-        return isContractOffline;
-    }
-    
-    string[] BroadcastedMessages;
-    
-    event PublicBroadcastEvent();
-    
-    function sendBroadcast(string memory text) public {
-        if(msg.sender == owner) {
-            BroadcastedMessages.push(text);
-            emit PublicBroadcastEvent();   
-        }
-    }
-    
-    function getBroadcasts() public view returns(string[] memory) {
-        return BroadcastedMessages;
-    }
-    
-    function clearBroadcasts() public {
-        if(msg.sender == owner) {
-            delete BroadcastedMessages;
-        }
-    }
     
     //
     //
@@ -63,7 +30,6 @@ contract DSocial {
             uint256[] dmChats;
             uint256[] files;
             uint256[] nfts;
-            uint256[] gmChats;
         }
         
         mapping(address => GlobalUser) GlobalUsers;
@@ -74,7 +40,7 @@ contract DSocial {
         
         function updateGlobalUser(string memory name, string memory description, string memory pfplocation, bool isBot) public {
             GlobalUser memory user = GlobalUsers[msg.sender];
-            GlobalUser memory gu = GlobalUser(name, description, pfplocation, user.friends, isBot, true, user.dmChats, user.files, user.nfts, user.gmChats);
+            GlobalUser memory gu = GlobalUser(name, description, pfplocation, user.friends, isBot, true, user.dmChats, user.files, user.nfts);
             GlobalUsers[msg.sender] = gu;
             emit ProfileUpdateEvent(msg.sender);
         }
@@ -147,7 +113,7 @@ contract DSocial {
             }
             else {
                 address[] memory allowedToSee;
-                File memory f = File("ERROR","ERROR",owner,false,allowedToSee);
+                File memory f = File("a","a",owner,false,allowedToSee);
                 return f;
             }
         }
@@ -163,6 +129,17 @@ contract DSocial {
         GlobalUsers[msg.sender].files.push(fileCounter);
         return true;
     }
+
+    function updateFile(string memory name, string memory data, bool restrictAccess, address[] memory allowedToSee, uint256 id) public returns(bool) {
+        if(GlobalFileStorage[id].uploader == msg.sender) {
+            File memory file = File(name, data, msg.sender, restrictAccess, allowedToSee);
+            GlobalFileStorage[id] = file;
+            return true;
+        }
+        else {
+            return false;
+        }
+    } 
 
     //
     //
@@ -190,7 +167,7 @@ contract DSocial {
             return GlobalNftStorage[id];
         }
         else {
-            NFT memory nft = NFT("ERROR", owner, true, "nofile.txt", "get a life", "www.nothere.com");
+            NFT memory nft = NFT("a", owner, true, "a", "a", "a");
             return nft;
         }  
     }
@@ -263,17 +240,11 @@ contract DSocial {
         return GlobalSentItems[msg.sender];
     }
     
-    function sendEmail(string memory text, address target) public returns(bool) {
-        if(isContractOffline==false) {
-            EMAIL memory email = EMAIL(text, msg.sender);
-            GlobalSentItems[msg.sender].push(email);
-            GlobalInbox[target].push(email);
-            emit EMailSendEvent(msg.sender, target);
-            return true;
-        }
-        else {
-            return false;
-        }
+    function sendEmail(string memory text, address target) public {
+        EMAIL memory email = EMAIL(text, msg.sender);
+        GlobalSentItems[msg.sender].push(email);
+        GlobalInbox[target].push(email);
+        emit EMailSendEvent(msg.sender, target);
     }
     
     function clearInbox() public {
@@ -318,8 +289,8 @@ contract DSocial {
         }
         else {
             uint256[] memory messages;
-            string memory name = "ERROR";
-            string memory description = "Something went wrong!";
+            string memory name = "a";
+            string memory description = "a";
             address[] memory members;
             DmChat memory chat = DmChat(messages, name, description, members);
             return chat;
@@ -331,7 +302,7 @@ contract DSocial {
             return GlobalMessages[id];
         }
         else {
-            string memory text = "ERROR";
+            string memory text = "a";
             address sender = address(this);
             address[] memory allowedToSee;
             uint256[] memory filesAttatched;
