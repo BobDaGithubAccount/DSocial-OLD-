@@ -24,6 +24,8 @@ contract DSocial {
             string name;
             string description;
             string pfplocation;
+            bool isStoredOnChain;
+            uint256 fileID;
             address[] friends;
             bool isBot;
             bool isValue;
@@ -38,9 +40,9 @@ contract DSocial {
             return GlobalUsers[target];
         }
         
-        function updateGlobalUser(string memory name, string memory description, string memory pfplocation, bool isBot) public {
+        function updateGlobalUser(string memory name, string memory description, string memory pfplocation, bool isBot, bool isStoredOnChain, uint256 fileID) public {
             GlobalUser memory user = GlobalUsers[msg.sender];
-            GlobalUser memory gu = GlobalUser(name, description, pfplocation, user.friends, isBot, true, user.dmChats, user.files, user.nfts);
+            GlobalUser memory gu = GlobalUser(name, description, pfplocation, isStoredOnChain, fileID, user.friends, isBot, true, user.dmChats, user.files, user.nfts);
             GlobalUsers[msg.sender] = gu;
             emit ProfileUpdateEvent(msg.sender);
         }
@@ -356,9 +358,4 @@ contract DSocial {
             emit DmDeleteEvent(chatID, person1, msg.sender);
         }
     }
-
-    //
-    //
-    //
-
 }
