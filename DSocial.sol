@@ -5,6 +5,11 @@ contract DSocial {
     //
     event OwnerChangedEvent(address oldone, address newone);
     address owner = 0xc479DA9d29D528670A916ab4Bc0c4a059a9619a8;
+
+    constructor() {
+        owner = msg.sender;
+    }
+
     function getOwner() public view returns(address) {
         return owner;
     }
@@ -15,6 +20,28 @@ contract DSocial {
         }
     }
     
+    string[] broadcasts;
+
+    function getBroadcasts() public view returns(string[] memory) {
+        return broadcasts;
+    }
+
+    event BroadcastEvent();
+
+    function sendBroadcasts(string memory text) public {
+        if(msg.sender == owner) {
+            broadcasts.push(text);
+            emit BroadcastEvent();
+        }
+    }
+
+    function clearBroadcasts() public {
+        if(msg.sender == owner) {
+            delete broadcasts;
+            emit BroadcastEvent();
+        }
+    }
+
     //
     //
     //
