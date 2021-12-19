@@ -352,6 +352,7 @@ contract GroupChatContract {
     event GmPersonKickedFromChat(uint256 chatID, address remover, address target);
     event GmPersonPromotedToModerator(uint256 chatID, address target);
     event GmPersonDemotedFromModerator(uint256 chatID, address target);
+    event GmChatUpdateEvent(uint256 id);
 
     function getChats() public view returns(uint256[] memory) {
         return GlobalGmUsersChats[msg.sender];
@@ -532,7 +533,9 @@ contract GroupChatContract {
             GlobalGroupChats[chatID].members = members;
             GlobalGroupChats[chatID].moderators.push(target);
             emit GmPersonPromotedToModerator(chatID, target);
+            return true;
         }
+        return false;
     }
 
     function deomoteFromModerator(uint256 chatID, address target) public returns(bool) {
@@ -547,9 +550,61 @@ contract GroupChatContract {
             GlobalGroupChats[chatID].moderators = moderators;
             GlobalGroupChats[chatID].members.push(target);
             emit GmPersonDemotedFromModerator(chatID, target);
+            return true;
         }
+        return false;
     }
 
-    
+    function updateChat(uint256 id, string memory name, string memory description) public returns(bool) {
+        if(GlobalGroupChats[id].owner == msg.sender) {
+            GlobalGroupChats[id].name = name;
+            GlobalGroupChats[id].description = description;
+            emit GmChatUpdateEvent(id);
+            return true;
+        }
+        return false;
+    }
+
+    function getMembersOfChat(uint256 id) public view returns(address[] memory) {
+        address[] memory members = GlobalGroupChats[id].members;
+        address[] memory moderators = GlobalGroupChats[id].moderators;
+        members.push(GlobalGroupChats[id].owner);
+        for(uint i = 0; i < moderators.length; i++) {
+            members.push(moderators[i]);
+        }
+        return members;
+    }
+
+    function isMemberOfChat(address target, uint256 id) public view returns(bool) {
+        bool returnValue = false;
+        address[] memory members = GlobalGroupChats[id].members;
+        address[] memory moderators = GlobalGroupChats[id].moderators;
+        members.push(GlobalGroupChats[id].owner);
+        for(uint i = 0; i < moderators.length; i++) {
+            members.push(moderators[i]);
+        }
+        for(uint i = 0; i < members.length; i++) {
+            if(members[i]==target) {
+                returnValue = true;
+                break;
+            }
+        }
+        return returnValue;
+    }
+
+
+    uint256 messageCounter = 0;
+
+    function sendMessage(uint256 id, string memory text, uint256[] memory filesAttatched) public returns(bool) {
+        if(isMemberOfChat(msg.sender, id)) {
+            Gm memory message = Gm(text, msg.sender, getMembersOfChat(id), filesAttatched);
+            messageCounter = messageCounter + 1;
+            GlobalGroupMessages[messageCounter] = message;
+            GlobalGroupChats[id].messages.push(messageCounter);
+            emit GmSendEvent(messageCounter, id, msg.sender);
+            return true;
+        }
+        return false;
+    }
 
 }
