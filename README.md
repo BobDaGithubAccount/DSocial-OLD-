@@ -1,2 +1,2 @@
 # DSocialBackend
-Decentrilised social media source code
+Decentrilized social media source code
