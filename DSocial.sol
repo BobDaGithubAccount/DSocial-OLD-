@@ -321,3 +321,107 @@ contract DMContract {
         }
     }
 }
+
+contract GroupChatContract {
+    struct Gm {
+        string text;
+        address sender;
+        address[] allowedToSee;
+        uint256[] filesAttatched;
+    }
+
+    struct GmChat {
+        uint256[] messages;
+        string name;
+        string description;
+        address owner;
+        address[] members;
+    }
+
+    mapping(uint256 => GmChat) GlobalGroupChats;
+    mapping(uint256 => Gm) GlobalGroupMessages;
+    mapping(address => uint256[]) GlobalGmUsersChats;
+    mapping(address => address[]) GlobalGmUsersFriendLists;
+
+    event GmSendEvent(uint256 messageID, uint256 chatID, address sender);
+    event GmCreateEvent(uint256 chatID);
+    event GmDeleteEvent(uint256 chatID);
+    event GmPersonAddedToChat(uint256 chatID, address adder, address target);
+    event GmPersonLeaveChat(uint256 chatID, address remover, address target);
+
+    function getChats() public view returns(uint256[] memory) {
+        return GlobalGmUsersChats[msg.sender];
+    }
+
+    function getFriends() public view returns(address[] memory) {
+        return GlobalGmUsersFriendLists[msg.sender];
+    }
+
+    function isFriend(address target1, address target2) public view returns(bool) {
+        address[] memory target1_friends = GlobalGmUsersFriendLists[target1];
+        bool returnValue = false;
+        for(uint i = 0; i < target1_friends.length; i++) {
+            if(target1_friends[i] == target2) {
+                returnValue = true;
+                break;
+            }
+        }
+        return returnValue;
+    }
+
+    function addFriend(address target) public returns(bool) {
+        GlobalGmUsersFriendLists[msg.sender].push(target);
+        return true;
+    }
+
+    function removeFriend(address target) public returns(bool) {
+        address[] memory friends = GlobalGmUsersFriendLists[msg.sender];
+        for(uint i = 0; i < friends.length; i++) {
+            if(friends[i] == target) {
+                delete friends[i];
+                break;
+            }
+        }
+        GlobalGmUsersFriendLists[msg.sender] = friends;
+        return true;
+    }
+
+    uint256 groupChatCounter = 0;
+
+    function createGroupChat(string memory name, string memory description) public {
+        uint256[] memory messages;
+        address[] memory members;
+        GmChat memory gc = GmChat(messages, name, description, msg.sender, members);
+        groupChatCounter = groupChatCounter + 1;
+        GlobalGroupChats[groupChatCounter] = gc;
+        GlobalGmUsersChats[msg.sender].push(groupChatCounter);
+        emit GmCreateEvent(groupChatCounter);
+    }
+
+    function deleteGroupChat(uint256 id) public {
+        if(GlobalGroupChats[id].owner == msg.sender) {
+            address[] memory members = GlobalGroupChats[id].members;
+            for(uint i = 0; i < members.length; i++) {
+                uint256[] memory chats = GlobalGmUsersChats[members[i]];
+                for(uint a = 0; a < chats.length; a++) {
+                    if(chats[a] == id) {
+                        delete chats[a];
+                        break;
+                    }
+                }
+                GlobalGmUsersChats[members[i]] = chats;
+            }
+            GlobalGroupChats[id].members = members;
+            uint256[] memory b = GlobalGmUsersChats[GlobalGroupChats[id].owner];
+            for(uint a = 0; a < b.length; a++) {
+                if(b[a] == id) {
+                    delete b[a];
+                    break;
+                }
+            }
+            GlobalGmUsersChats[GlobalGroupChats[id].owner] = b;
+            delete GlobalGroupChats[id];
+            emit GmDeleteEvent(id);
+        }
+    }
+}
