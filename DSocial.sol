@@ -1,18 +1,15 @@
 pragma solidity 0.8.10;
 pragma abicoder v2;
 // SPDX-License-Identifier: Proprietary
-contract DSocial {
-    //
+contract MainContract {
+    
     event OwnerChangedEvent(address oldone, address newone);
+
     address owner = 0xc479DA9d29D528670A916ab4Bc0c4a059a9619a8;
-
-    constructor() {
-        owner = msg.sender;
-    }
-
     function getOwner() public view returns(address) {
         return owner;
     }
+
     function setOwner(address target) public {
         if(owner == msg.sender) {
             owner = target;
@@ -28,7 +25,7 @@ contract DSocial {
 
     event BroadcastEvent();
 
-    function sendBroadcasts(string memory text) public {
+    function sendBroadcast(string memory text) public {
         if(msg.sender == owner) {
             broadcasts.push(text);
             emit BroadcastEvent();
@@ -42,215 +39,127 @@ contract DSocial {
         }
     }
 
-    //
-    //
-    //
-        event ProfileUpdateEvent(address target);
-    
-        struct GlobalUser {
-            string name;
-            string description;
-            string pfplocation;
-            bool isStoredOnChain;
-            uint256 fileID;
-            address[] friends;
-            bool isBot;
-            bool isValue;
-            uint256[] dmChats;
-            uint256[] files;
-            uint256[] nfts;
-        }
-        
-        mapping(address => GlobalUser) GlobalUsers;
-        
-        function getGlobalUser(address target) public view returns(GlobalUser memory) {
-            return GlobalUsers[target];
-        }
-        
-        function updateGlobalUser(string memory name, string memory description, string memory pfplocation, bool isBot, bool isStoredOnChain, uint256 fileID) public {
-            GlobalUser memory user = GlobalUsers[msg.sender];
-            GlobalUser memory gu = GlobalUser(name, description, pfplocation, isStoredOnChain, fileID, user.friends, isBot, true, user.dmChats, user.files, user.nfts);
-            GlobalUsers[msg.sender] = gu;
-            emit ProfileUpdateEvent(msg.sender);
-        }
-        
-        //
-        //
-        //
+    mapping(string => address) contracts;
 
-        function addFriend(address target) public {
-            GlobalUsers[msg.sender].friends.push(target);
-        }
-        
-        function deleteFriend(address target) public {
-            address[] memory friendsList = GlobalUsers[msg.sender].friends;
-            for(uint i=0; i<friendsList.length; i++) {
-                if(friendsList[i] == target) {
-                    delete GlobalUsers[msg.sender].friends[i];
-                    break;
-                }
-            }
-        }
-        
-        function getFriends() public view returns(address[] memory) {
-            return GlobalUsers[msg.sender].friends;
-        }
-        
-        function isFriend(address person1, address person2) public view returns(bool) {
-            bool returnValue;
-            for(uint i = 0; i < GlobalUsers[person2].friends.length; i++) {
-                if(GlobalUsers[person2].friends[i] == person1) {
-                    returnValue = true;
-                    break;
-                }
-            }
-            return returnValue;
-        }
+    string[] contractNames;
 
-    //
-    //
-    //
+    function getContracts() public view returns(string[] memory) {
+        return contractNames;
+    }
 
+    function getContract(string memory name) public view returns(address) {
+        return contracts[name];
+    }
+
+    function deleteContract(string memory name) public returns(bool) {
+       if(msg.sender == owner) {
+           delete contracts[name];
+           return true;
+       }
+       return false;
+    }
+
+    function setContract(string memory name, address address_) public returns(bool) {
+        if(msg.sender == owner) {
+            contracts[name] = address_;
+        }
+        return false;    
+    }
+}
+
+contract FileContract {
     struct File {
         string name;
         string data;
-        address uploader;
+        address owner;
         bool restrictAccess;
         address[] allowedToSee;
     }
 
+    mapping(address => uint256[]) GlobalUserFileStorage;
     mapping(uint256 => File) GlobalFileStorage;
 
     uint256 fileCounter = 0;
 
     function getFiles() public view returns(uint256[] memory) {
-        return GlobalUsers[msg.sender].files;
+        return GlobalUserFileStorage[msg.sender];
     }
 
-    function getFile(uint256 id) public view returns(File memory) {
-        File memory file = GlobalFileStorage[id];
-        if(file.restrictAccess == true) {
-            bool returnValue;
-            for(uint i = 0; i < file.allowedToSee.length; i++) {
-                if(file.allowedToSee[i] == msg.sender) {
-                    returnValue = true;
-                    break;
-                }
-            }
-            if(returnValue == true) {
-                return file;
-            }
-            else {
-                address[] memory allowedToSee;
-                File memory f = File("a","a",owner,false,allowedToSee);
-                return f;
-            }
-        }
-        else {
-            return file;
-        }
-    }
+    event FileUploadEvent(uint256 id);
+    event FileUpdateEvent(uint256 id);
 
-    function uploadFile(string memory name, string memory data, bool restrictAccess, address[] memory allowedToSee) public returns(bool) {
+    function uploadFile(string memory name, string memory data, bool restrictAccess, address[] memory allowedToSee) public {
         File memory file = File(name, data, msg.sender, restrictAccess, allowedToSee);
-        fileCounter++;
+        fileCounter = fileCounter + 1;
         GlobalFileStorage[fileCounter] = file;
-        GlobalUsers[msg.sender].files.push(fileCounter);
-        return true;
+        GlobalUserFileStorage[msg.sender].push(fileCounter);
+        emit FileUploadEvent(fileCounter);
     }
 
-    function updateFile(string memory name, string memory data, bool restrictAccess, address[] memory allowedToSee, uint256 id) public returns(bool) {
-        if(GlobalFileStorage[id].uploader == msg.sender) {
+    function updateFile(uint256 id, string memory name, string memory data, bool restrictAccess, address[] memory allowedToSee) public {
+        if(GlobalFileStorage[id].owner == msg.sender) {
             File memory file = File(name, data, msg.sender, restrictAccess, allowedToSee);
             GlobalFileStorage[id] = file;
-            return true;
+            emit FileUpdateEvent(id);
         }
-        else {
-            return false;
-        }
-    } 
+    }
+}
 
-    //
-    //
-    //
+contract NFTContract {
+    struct NFT {
+        string name;
+        string data;
+        address owner;
+    }
+
+    mapping(address => uint256[]) GlobalUserNFTStorage;
+    mapping(uint256 => NFT) GlobalNFTStorage;
 
     uint256 nftCounter = 0;
 
-    mapping(uint256 => NFT) GlobalNftStorage;
-
-    struct NFT {
-        string name;
-        address owner;
-        bool isStoredOnChain;
-        string fileName;
-        string data;
-        string url;
-    }
-
-    function getNFTs() public view returns(uint256[] memory) {
-        return GlobalUsers[msg.sender].nfts;
+    function getNfts() public view returns(uint256[] memory) {
+        return GlobalUserNFTStorage[msg.sender];
     }
 
     function getNFT(uint256 id) public view returns(NFT memory) {
-        if(GlobalNftStorage[id].owner == msg.sender) {
-            return GlobalNftStorage[id];
+        if(GlobalNFTStorage[id].owner == msg.sender) {
+            return GlobalNFTStorage[id];
         }
         else {
-            NFT memory nft = NFT("a", owner, true, "a", "a", "a");
+            NFT memory nft = NFT("a", "a", address(this));
             return nft;
-        }  
-    }
-
-    function createNFT(string memory name, bool isStoredOnChain, string memory fileName, string memory fileData, string memory url) public returns(bool) {
-        NFT memory nft = NFT(name, msg.sender, isStoredOnChain, fileName, fileData, url);
-        nftCounter++;
-        uint256 counter = nftCounter;
-        GlobalNftStorage[counter] = nft;
-        GlobalUsers[msg.sender].nfts.push(counter);
-        emit NftEvent(counter, msg.sender, msg.sender);
-        return true;
-    }
-
-    function updateNFT(uint256 NftId, string memory name, bool isStoredOnChain, string memory fileName, string memory fileData, string memory url) public returns(bool) {
-        if(GlobalNftStorage[NftId].owner == msg.sender) {
-            NFT memory nft = NFT(name, msg.sender, isStoredOnChain, fileName, fileData, url);
-            GlobalNftStorage[NftId] = nft;
-            emit NftEvent(NftId, msg.sender, msg.sender);
-            return true;
-        }
-        else {
-            return false;
         }
     }
 
-    event NftEvent(uint256 id, address oldOwner, address newOwner);
+    event NFTUploadEvent(uint256 id);
+    event NFTTransferEvent(uint256 id, address previousOwner, address newOwner);
 
-    function transferNFT(uint256 NftId, address target) public returns(bool) {
-        if(GlobalNftStorage[NftId].owner == msg.sender) {
-            NFT memory nft = GlobalNftStorage[NftId];
-            nft.owner = target;
-            GlobalNftStorage[NftId] = nft;
-            GlobalUsers[target].nfts.push(NftId);
-            uint256[] memory nfts = GlobalUsers[msg.sender].nfts;
-            for(uint i = 0; i < nfts.length; i++) {
-                if(nfts[i] == NftId) {
-                    delete nfts[i];
+    function uploadNFT(string memory name, string memory data) public {
+        NFT memory nft = NFT(name, data, msg.sender);
+        nftCounter = nftCounter + 1;
+        GlobalNFTStorage[nftCounter] = nft;
+        GlobalUserNFTStorage[msg.sender].push(nftCounter);
+        emit NFTUploadEvent(nftCounter);
+    }
+
+    function transferNFT(uint256 id, address target) public {
+        if(GlobalNFTStorage[id].owner == msg.sender) {
+            uint256[] memory ownerNFTS = GlobalUserNFTStorage[msg.sender];
+            for(uint i = 0; i < ownerNFTS.length; i++) {
+                if(ownerNFTS[i]==id) {
+                    delete ownerNFTS[i];
                     break;
                 }
             }
-            GlobalUsers[msg.sender].nfts = nfts;
-            emit NftEvent(NftId, msg.sender, target);
-            return true;
-        }
-        else {
-            return false;
+            GlobalUserNFTStorage[msg.sender] = ownerNFTS;
+            GlobalNFTStorage[id].owner = target;
+            GlobalUserNFTStorage[target].push(id);
+            emit NFTTransferEvent(id, msg.sender, target);
         }
     }
+}
 
-    //
-    //
-    //
-    
+contract EMailContract {
     struct EMAIL {
         string text;
         address sender;
@@ -282,11 +191,10 @@ contract DSocial {
     function clearSentItems() public {
         delete GlobalSentItems[msg.sender];
     }
+}
 
-    //
-    //
-    //
-
+contract DMContract {
+    
     struct Dm {
         string text;
         address sender;
@@ -303,13 +211,40 @@ contract DSocial {
 
     mapping(uint256 => DmChat) GlobalChats;
     mapping(uint256 => Dm) GlobalMessages;
+    mapping(address => uint256[]) GlobalDmUsersChats;
+    mapping(address => address[]) GlobalDmUsersFriendLists;
 
     event DmSendEvent(uint256 messageID, uint256 chatID, address target, address sender);
     event DmCreateEvent(uint256 chatID, address target, address sender);
     event DmDeleteEvent(uint256 chatID, address target, address sender);
 
+    function isFriend(address target1, address target2) public view returns(bool) {
+        address[] memory target1_friends = GlobalDmUsersFriendLists[target1];
+        bool returnValue = false;
+        for(uint i = 0; i < target1_friends.length; i++) {
+            if(target1_friends[i] == target2) {
+                returnValue = true;
+                break;
+            }
+        }
+        return returnValue;
+    }
+    function addFriend(address target) public {
+        GlobalDmUsersFriendLists[msg.sender].push(target);
+    }
+    function removeFriend(address target) public {
+        address[] memory friends = GlobalDmUsersFriendLists[msg.sender];
+        for(uint i = 0; i < friends.length; i++) {
+            if(friends[i] == target) {
+                delete friends[i];
+                break;
+            }
+        }
+        GlobalDmUsersFriendLists[msg.sender] = friends;
+    }
+
     function getDmChats() public view returns(uint256[] memory) {
-        return GlobalUsers[msg.sender].dmChats;
+        return GlobalDmUsersChats[msg.sender];
     }
 
     function getDmChat(uint256 id) public view returns(DmChat memory) {
@@ -351,8 +286,8 @@ contract DSocial {
             members[1] = target;
             DmChat memory chat = DmChat(messages, name, description, members);
             GlobalChats[globalChatCount] = chat;
-            GlobalUsers[msg.sender].dmChats.push(globalChatCount);
-            GlobalUsers[target].dmChats.push(globalChatCount);
+            GlobalDmUsersChats[msg.sender].push(globalChatCount);
+            GlobalDmUsersChats[target].push(globalChatCount);
             emit DmCreateEvent(globalChatCount, target, msg.sender);
         }
     }
@@ -385,7 +320,4 @@ contract DSocial {
             emit DmDeleteEvent(chatID, person1, msg.sender);
         }
     }
-
-    // 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
-    // 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2
 }
