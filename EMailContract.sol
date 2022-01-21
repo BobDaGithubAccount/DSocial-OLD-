@@ -1,36 +1,30 @@
-pragma solidity 0.8.11;
-pragma abicoder v2;
+pragma solidity 0.8.10;
 // SPDX-License-Identifier: Proprietary
 contract EMailContract {
-    struct EMAIL {
+    struct EMail {
+        string title;
+        string about;
         string text;
+        uint256[] files;
         address sender;
     }
     
-    mapping(address => EMAIL[]) GlobalInbox;
-    mapping(address => EMAIL[]) GlobalSentItems;
-    
-    event EMailSendEvent(address sender, address target);
-    
-    function getInbox() public view returns(EMAIL[] memory) {
+    mapping(address=>EMail[]) GlobalInbox;
+    mapping(address=>EMail[]) GlobalSentItems;
+
+    event EmailSentEvent(address target, address sender);
+    function sendEmail(address target, string memory title, string memory about, string memory text, uint256[] memory files) public {
+        EMail memory email = EMail(title,about,text,files,msg.sender);
+        GlobalInbox[target].push(email);
+        GlobalInbox[msg.sender].push(email);
+        emit EmailSentEvent(target, msg.sender);
+    }
+
+    function getInbox() public view returns(EMail[] memory) {
         return GlobalInbox[msg.sender];
     }
-    
-    function getSentItems() public view returns(EMAIL[] memory) {
+
+    function getSentItems() public view returns(EMail[] memory) {
         return GlobalSentItems[msg.sender];
-    }
-    
-    function sendEmail(string memory text, address target) public {
-        EMAIL memory email = EMAIL(text, msg.sender);
-        GlobalSentItems[msg.sender].push(email);
-        GlobalInbox[target].push(email);
-        emit EMailSendEvent(msg.sender, target);
-    }
-    
-    function clearInbox() public {
-        delete GlobalInbox[msg.sender];
-    }
-    function clearSentItems() public {
-        delete GlobalSentItems[msg.sender];
     }
 }
