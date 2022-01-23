@@ -1,5 +1,4 @@
-pragma solidity 0.8.11;
-pragma abicoder v2;
+pragma solidity 0.8.10;
 // SPDX-License-Identifier: Proprietary
 contract DMContract {
     
@@ -56,64 +55,47 @@ contract DMContract {
     }
 
     function getDmChat(uint256 id) public view returns(DmChat memory) {
-        if(GlobalChats[id].members[0] == msg.sender || GlobalChats[id].members[1] == msg.sender) {
-            return GlobalChats[id];
-        }
-        else {
-            uint256[] memory messages;
-            string memory name = "a";
-            string memory description = "a";
-            address[] memory members;
-            DmChat memory chat = DmChat(messages, name, description, members);
-            return chat;
-        }
+        require(GlobalChats[id].members[0] == msg.sender || GlobalChats[id].members[1] == msg.sender,
+            "You don't have permission to access this DM!");
+        return GlobalChats[id];
     }
 
     function getMessage(uint256 id) public view returns(Dm memory) {
-        if(GlobalMessages[id].allowedToSee[0] == msg.sender || GlobalMessages[id].allowedToSee[1] == msg.sender) {
-            return GlobalMessages[id];
-        }
-        else {
-            string memory text = "a";
-            address sender = address(this);
-            address[] memory allowedToSee;
-            uint256[] memory filesAttatched;
-            Dm memory dm = Dm(text, sender, allowedToSee, filesAttatched);
-            return dm;
-        }
+        require(GlobalMessages[id].allowedToSee[0] == msg.sender || GlobalMessages[id].allowedToSee[1] == msg.sender,
+            "You don't have permission to access this DM!");
+        return GlobalMessages[id];
     }
 
     uint256 public globalChatCount = 0;
 
     function createDmChat(string memory name, string memory description, address target) public {
-        if(isFriend(msg.sender, target)) {
-            globalChatCount++;
-            uint256[] memory messages;
-            address[] memory members = new address[](2);
-            members[0] = msg.sender;
-            members[1] = target;
-            DmChat memory chat = DmChat(messages, name, description, members);
-            GlobalChats[globalChatCount] = chat;
-            GlobalDmUsersChats[msg.sender].push(globalChatCount);
-            GlobalDmUsersChats[target].push(globalChatCount);
-            emit DmCreateEvent(globalChatCount, target, msg.sender);
-        }
+        require(isFriend(msg.sender, target),"You aren't friends with this person!");
+        globalChatCount++;
+        uint256[] memory messages;
+        address[] memory members = new address[](2);
+        members[0] = msg.sender;
+        members[1] = target;
+        DmChat memory chat = DmChat(messages, name, description, members);
+        GlobalChats[globalChatCount] = chat;
+        GlobalDmUsersChats[msg.sender].push(globalChatCount);
+        GlobalDmUsersChats[target].push(globalChatCount);
+        emit DmCreateEvent(globalChatCount, target, msg.sender);
     }
 
     uint256 public globalMessageCount = 0;
 
     function sendMessage(uint256 chatID, string memory text, address target, uint256[] memory filesAttatched) public {
-        if(GlobalChats[chatID].members[0] == msg.sender || GlobalChats[chatID].members[1] == msg.sender) {
-            uint256 id = globalMessageCount + 1;
-            globalMessageCount = id;
-            address[] memory allowedToSee = new address[](2);
-            allowedToSee[0] = msg.sender;
-            allowedToSee[1] = target;
-            Dm memory dm = Dm(text, msg.sender, allowedToSee, filesAttatched);
-            GlobalMessages[id] = dm;
-            GlobalChats[chatID].messages.push(id);
-            emit DmSendEvent(id, chatID, target, msg.sender);
-        }
+        require(GlobalChats[chatID].members[0] == msg.sender || GlobalChats[chatID].members[1] == msg.sender,
+                "You don't have permission to access this DM!");
+        uint256 id = globalMessageCount + 1;
+        globalMessageCount = id;
+        address[] memory allowedToSee = new address[](2);
+        allowedToSee[0] = msg.sender;
+        allowedToSee[1] = target;
+        Dm memory dm = Dm(text, msg.sender, allowedToSee, filesAttatched);
+        GlobalMessages[id] = dm;
+        GlobalChats[chatID].messages.push(id);
+        emit DmSendEvent(id, chatID, target, msg.sender);
     }
 
     function deleteDmChat(uint256 chatID) public {
