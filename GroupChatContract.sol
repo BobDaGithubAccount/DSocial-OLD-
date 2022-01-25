@@ -1,11 +1,10 @@
-pragma solidity 0.8.11;
-pragma abicoder v2;
+pragma solidity 0.8.10;
 // SPDX-License-Identifier: Proprietary
 contract GroupChatContract {
     struct Gm {
         string text;
         address sender;
-        address[] allowedToSee;
+        uint256 chatId;
         uint256[] filesAttatched;
     }
 
@@ -38,19 +37,8 @@ contract GroupChatContract {
     }
 
     function getChat(uint256 id) public view returns(GmChat memory) {
-        if(isMemberOfChat(msg.sender, id)) {
-            return GlobalGroupChats[id];
-        }
-        else {
-            uint256[] memory messages;
-            string memory name;
-            string memory description;
-            address owner;
-            address[] memory moderators;
-            address[] memory members;
-            GmChat memory gm = GmChat(messages, name, description, owner, moderators, members);
-            return gm;
-        }
+        require(isMemberOfChat(msg.sender, id),"You don't have permission to access this Group Chat!");
+        return GlobalGroupChats[id];
     }
 
     function getFriends() public view returns(address[] memory) {
@@ -81,12 +69,11 @@ contract GroupChatContract {
         return returnValue;
     }
 
-    function addFriend(address target) public returns(bool) {
+    function addFriend(address target) public {
         GlobalGmUsersFriendLists[msg.sender].push(target);
-        return true;
     }
 
-    function removeFriend(address target) public returns(bool) {
+    function removeFriend(address target) public {
         address[] memory friends = GlobalGmUsersFriendLists[msg.sender];
         for(uint i = 0; i < friends.length; i++) {
             if(friends[i] == target) {
@@ -95,7 +82,6 @@ contract GroupChatContract {
             }
         }
         GlobalGmUsersFriendLists[msg.sender] = friends;
-        return true;
     }
 
     uint256 groupChatCounter = 0;
@@ -112,73 +98,69 @@ contract GroupChatContract {
     }
 
     function deleteGroupChat(uint256 id) public {
-        if(GlobalGroupChats[id].owner == msg.sender) {
-            address[] memory members = GlobalGroupChats[id].members;
-            for(uint i = 0; i < members.length; i++) {
-                uint256[] memory chats = GlobalGmUsersChats[members[i]];
-                for(uint a = 0; a < chats.length; a++) {
-                    if(chats[a] == id) {
-                        delete chats[a];
-                        break;
-                    }
-                }
-                GlobalGmUsersChats[members[i]] = chats;
-            }
-            address[] memory moderators = GlobalGroupChats[id].moderators;
-            for(uint i = 0; i < moderators.length; i++) {
-                uint256[] memory chats = GlobalGmUsersChats[moderators[i]];
-                for(uint a = 0; a < chats.length; a++) {
-                    if(chats[a] == id) {
-                        delete chats[a];
-                        break;
-                    }
-                }
-                GlobalGmUsersChats[moderators[i]] = chats;
-            }
-            GlobalGroupChats[id].moderators = moderators;
-            uint256[] memory ownerChats = GlobalGmUsersChats[GlobalGroupChats[id].owner];
-            for(uint a = 0; a < ownerChats.length; a++) {
-                if(ownerChats[a] == id) {
-                    delete ownerChats[a];
+        require(GlobalGroupChats[id].owner == msg.sender,"You don't have permission to access this Group Chat!");
+        address[] memory members = GlobalGroupChats[id].members;
+        for(uint i = 0; i < members.length; i++) {
+            uint256[] memory chats = GlobalGmUsersChats[members[i]];
+            for(uint a = 0; a < chats.length; a++) {
+                if(chats[a] == id) {
+                    delete chats[a];
                     break;
                 }
             }
-            GlobalGmUsersChats[GlobalGroupChats[id].owner] = ownerChats;
-            delete GlobalGroupChats[id];
-            emit GmDeleteEvent(id);
+            GlobalGmUsersChats[members[i]] = chats;
         }
+        address[] memory moderators = GlobalGroupChats[id].moderators;
+        for(uint i = 0; i < moderators.length; i++) {
+            uint256[] memory chats = GlobalGmUsersChats[moderators[i]];
+            for(uint a = 0; a < chats.length; a++) {
+                if(chats[a] == id) {
+                    delete chats[a];
+                    break;
+                }
+            }
+            GlobalGmUsersChats[moderators[i]] = chats;
+        }
+        GlobalGroupChats[id].moderators = moderators;
+        uint256[] memory ownerChats = GlobalGmUsersChats[GlobalGroupChats[id].owner];
+        for(uint a = 0; a < ownerChats.length; a++) {
+            if(ownerChats[a] == id) {
+                delete ownerChats[a];
+                break;
+            }
+        }
+        GlobalGmUsersChats[GlobalGroupChats[id].owner] = ownerChats;
+        delete GlobalGroupChats[id];
+        emit GmDeleteEvent(id);
     }
 
     function addPersonToGroupChat(uint256 id, address target) public {
-        if(isModerator(id, msg.sender) || GlobalGroupChats[id].owner == msg.sender) {
-            if(isFriend(target, msg.sender)) {
-                GlobalGroupChats[id].members.push(target);
-                GlobalGmUsersChats[target].push(id);
-                emit GmPersonAddedToChat(id, msg.sender, target);
-            }
-        }
+        require(isModerator(id, msg.sender) || GlobalGroupChats[id].owner == msg.sender,"You don't have permission to access this Group Chat!");
+        require(isFriend(target, msg.sender),"You aren't friends with them!");
+        GlobalGroupChats[id].members.push(target);
+        GlobalGmUsersChats[target].push(id);
+        emit GmPersonAddedToChat(id, msg.sender, target);
     }
 
     function kickPersonFromChat(uint256 id, address target) public {
-        if(!isModerator(id, target) && GlobalGroupChats[id].owner != target) {
-            address[] memory members = GlobalGroupChats[id].members;
-            for(uint i = 0; i < members.length; i++) {
-                if(members[i] == target) {
-                    delete members[i];
-                    break;
-                }
+        require(!isModerator(id, target) && GlobalGroupChats[id].owner != target,"You can't kick this person!");
+        address[] memory members = GlobalGroupChats[id].members;
+        for(uint i = 0; i < members.length; i++) {
+            if(members[i] == target) {
+                delete members[i];
+                break;
             }
-            GlobalGroupChats[id].members = members;
-            uint256[] memory chats = GlobalGmUsersChats[target];
-            for(uint i = 0; i < chats.length; i++) {
-                if(chats[i] == id) {
-                    delete chats[i];
-                    break;
-                }
-            }
-            GlobalGmUsersChats[target] = chats;
-            emit GmPersonKickedFromChat(id, msg.sender, target);
         }
+        GlobalGroupChats[id].members = members;
+        uint256[] memory chats = GlobalGmUsersChats[target];
+        for(uint i = 0; i < chats.length; i++) {
+            if(chats[i] == id) {
+                delete chats[i];
+                break;
+            }
+        }
+        GlobalGmUsersChats[target] = chats;
+        emit GmPersonKickedFromChat(id, msg.sender, target);
     }
 
     function leaveChat(uint256 id) public returns(bool) {
@@ -216,48 +198,39 @@ contract GroupChatContract {
         return false;
     }
 
-    function promoteToModerator(uint256 chatID, address target) public returns(bool) {
-        if(GlobalGroupChats[chatID].owner == msg.sender && !isModerator(chatID, target)) {
-            address[] memory members = GlobalGroupChats[chatID].members;
-            for(uint i = 0; i < members.length; i++) {
-                if(members[i] == target) {
-                    delete members[i];
-                    break;
-                }
+    function promoteToModerator(uint256 chatID, address target) public {
+        require(GlobalGroupChats[chatID].owner == msg.sender && !isModerator(chatID, target),"You don't have permission to do this!");
+        address[] memory members = GlobalGroupChats[chatID].members;
+        for(uint i = 0; i < members.length; i++) {
+            if(members[i] == target) {
+                delete members[i];
+                break;
             }
-            GlobalGroupChats[chatID].members = members;
-            GlobalGroupChats[chatID].moderators.push(target);
-            emit GmPersonPromotedToModerator(chatID, target);
-            return true;
         }
-        return false;
+        GlobalGroupChats[chatID].members = members;
+        GlobalGroupChats[chatID].moderators.push(target);
+        emit GmPersonPromotedToModerator(chatID, target);
     }
 
-    function deomoteFromModerator(uint256 chatID, address target) public returns(bool) {
-        if(GlobalGroupChats[chatID].owner == msg.sender  && isModerator(chatID, target)) {
-            address[] memory moderators = GlobalGroupChats[chatID].moderators;
-            for(uint i = 0; i < moderators.length; i++) {
-                if(moderators[i] == target) {
-                    delete moderators[i];
-                    break;
-                }
+    function deomoteFromModerator(uint256 chatID, address target) public {
+        require(GlobalGroupChats[chatID].owner == msg.sender  && isModerator(chatID, target),"You don't have permission to do this!");
+        address[] memory moderators = GlobalGroupChats[chatID].moderators;
+        for(uint i = 0; i < moderators.length; i++) {
+            if(moderators[i] == target) {
+                delete moderators[i];
+                break;
             }
-            GlobalGroupChats[chatID].moderators = moderators;
-            GlobalGroupChats[chatID].members.push(target);
-            emit GmPersonDemotedFromModerator(chatID, target);
-            return true;
         }
-        return false;
+        GlobalGroupChats[chatID].moderators = moderators;
+        GlobalGroupChats[chatID].members.push(target);
+        emit GmPersonDemotedFromModerator(chatID, target);
     }
 
-    function updateChat(uint256 id, string memory name, string memory description) public returns(bool) {
-        if(GlobalGroupChats[id].owner == msg.sender) {
-            GlobalGroupChats[id].name = name;
-            GlobalGroupChats[id].description = description;
-            emit GmChatUpdateEvent(id);
-            return true;
-        }
-        return false;
+    function updateChat(uint256 id, string memory name, string memory description) public {
+        require(GlobalGroupChats[id].owner == msg.sender,"You don't have permission to do this!");
+        GlobalGroupChats[id].name = name;
+        GlobalGroupChats[id].description = description;
+        emit GmChatUpdateEvent(id);
     }
 
     function getMembersOfChat(uint256 id) public view returns(address[] memory) {
@@ -304,15 +277,22 @@ contract GroupChatContract {
 
     uint256 messageCounter = 0;
 
-    function sendMessage(uint256 id, string memory text, uint256[] memory filesAttatched) public returns(bool) {
-        if(isMemberOfChat(msg.sender, id)) {
-            Gm memory message = Gm(text, msg.sender, getMembersOfChat(id), filesAttatched);
-            messageCounter = messageCounter + 1;
-            GlobalGroupMessages[messageCounter] = message;
-            GlobalGroupChats[id].messages.push(messageCounter);
-            emit GmSendEvent(messageCounter, id, msg.sender);
-            return true;
-        }
-        return false;
+    function sendMessage(uint256 id, string memory text, uint256[] memory filesAttatched) public {
+        require(isMemberOfChat(msg.sender, id),"You don't have permission to send a message in this group chat!");
+        Gm memory message = Gm(text, msg.sender, id, filesAttatched);
+        messageCounter = messageCounter + 1;
+        GlobalGroupMessages[messageCounter] = message;
+        GlobalGroupChats[id].messages.push(messageCounter);
+        emit GmSendEvent(messageCounter, id, msg.sender);
     }
-}    
+
+    function getMessages(uint256 id) public view returns(uint256[] memory) {
+        require(isMemberOfChat(msg.sender, id),"You don't have permission to access this group chat!");
+        return GlobalGroupChats[id].messages;
+    }
+
+    function getMessage(uint256 messageID) public view returns(Gm memory) {
+        require(isMemberOfChat(msg.sender, GlobalGroupMessages[messageID].chatId),"You don't have permission to access this group chat!");
+        return GlobalGroupMessages[messageID];
+    }
+}
