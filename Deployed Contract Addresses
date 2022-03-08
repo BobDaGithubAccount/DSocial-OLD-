@@ -3,3 +3,4 @@
 0x5Fd2f9da143dcffe9e2a0Bd90D8595Df919Abbd6  MainContract
 0x212494D4EDe635eE6CA32877e65804580E8470Cb  DMContract
 0x9e98e0Db64C44fd1A4Dce30Ee5d17D2117256D7e  GroupChatContract
+0:  string[]: EMailContract,FileContract,DMContract,GroupChatContract||||
