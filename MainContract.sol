@@ -28,13 +28,15 @@ contract MainContract {
     }
 
     mapping(string=>address) contracts;
+    mapping(string=>string) contractABI;
     string[] contractNames;
 
     event ContractEvent(address target);
 
-    function pushContract(string memory name, address target) public {
+    function pushContract(string memory name, string memory ABI, address target) public {
         require(msg.sender==owner,"You aren't the owner of DSocial!");
         contracts[name] = target;
+        contractABI[name] = ABI;
         contractNames.push(name);
         emit ContractEvent(target);
     }
@@ -45,6 +47,7 @@ contract MainContract {
             if(stringsEquals(contractNames[i],name)) {
                 delete contractNames[i];
                 delete contracts[name];
+                delete contractABI[name];
                 break;
             }
         }
@@ -61,8 +64,8 @@ contract MainContract {
     return true;
     }   
 
-    function getContract(string memory name) public view returns(address) {
-        return contracts[name];
+    function getContract(string memory name) public view returns(address, string memory) {
+        return(contracts[name], contractABI[name]);
     }
 
     function getContractNames() public view returns(string[] memory) {
